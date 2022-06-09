@@ -9,5 +9,5 @@ ip='10.0.200.249'
 snmp_host='10.0.21.123'
 snmp_port=161
 snmp_community='public'
-elastic_server='10.0.21.123:9200'
+elastic_server={'ip':'10.0.21.123:9200', 'api_id':'', 'api_key':''}
 timewait=5

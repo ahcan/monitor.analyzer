@@ -13,31 +13,20 @@ def cc_get(ip,agent,index,elasticsearch,time_to,time_from):
                 index='%s' % (index),
                 size="1000",
                 body={
-                        'query': {
-                                'filtered': {
-                                        'query': {
-                                                'match': {"message":'%s' % (ip)}
-                                                },
-                                        'filter': {
-                                                'and' : [
-                                                {
-                                                        'range': {
-                                                                '@timestamp': {
-                                                                        'gt': '%s' % (time_to),
-                                                                        'lt': '%s' % (time_from)
-                                                                }
-                                                        }
-                                                },{
-                                                        'prefix': {"host":'%s' % (agent)}
-                                                },{
-                                                        'prefix': {"message":'Detected discontinuity'}
-                                                }  ]
-                                        }
-                                }
-                        }
-                } )
-        if result['hits']['total']!=0:
-                for i in range(0, result['hits']['total']):
+                      "query":{
+                      	"bool":{
+                            "must":[
+                                {"match":{"host":"{0}".format(agent)}},
+                                {"match":{"message":"{0}".format(ip)}},
+                                {"match":{"message":"Detected discontinuity"}}
+                              ],
+                            "filter":[
+                                     {"range":{"@timestamp":{"gt":"{0}".format(time_to), "lt":"{0}".format(time_from)}}}
+                                     ]
+                           }
+                        }})
+        if result['hits']['total']['value']!=0:
+                for i in range(0, result['hits']['total']['value']):
 #               temp=re.search('(?<=skips:)\d+',result['hits']['hits'][i]['_source']['message'])
                         discontinuity_new+=int(re.search('(?<=skips:)\d+',result['hits']['hits'][i]['_source']['message']).group(0))
         return discontinuity_new
@@ -54,7 +43,7 @@ def analyzer_check(id,ip,agent,analyzer_status,dropframe,dropframe_threshold,dis
         count_cc=0
 #       list_time=['now','now-2m','now-4m','now-6m','now-8m','now-10m','now-12m','now-14m','now-16m']
         list_time=['now','now-1m','now-2m','now-3m','now-4m','now-5m','now-6m','now-7m','now-8m']
-        
+
         if discontinuity_threshold!=0:
                 ccerror=(int(discontinuity)*100)/int(discontinuity_threshold)
         if ccerror >= 25:
@@ -79,9 +68,9 @@ def analyzer_check(id,ip,agent,analyzer_status,dropframe,dropframe_threshold,dis
                         #print status_new
                         #print text
                         #update analyzer status
-                        requests.put(api+"profile_agent/"+str(id)+"/", json={"analyzer_status": status_new})
+                        requests.put(api+"profile_agent/"+str(id)+"/", auth=(api_user, api_paswd), json={"analyzer_status": status_new})
                         #write logs
-                        requests.post(api+"log/", json={"host": agent, "tag": 'analyzer', "msg": text})
+                        requests.post(api+"log/", auth=(api_user, api_paswd), json={"host": agent, "tag": 'analyzer', "msg": text})
                 except requests.exceptions.RequestException:
                         print "can't connect API!"
 
@@ -91,16 +80,16 @@ if os.path.exists(configfile):
 else:
         print "can't read file config";
         exit(1)
-es = Elasticsearch(elastic_server,timeout=3.5)
+es = Elasticsearch(elastic_server['ip'],api_key=(elastic_server['api_id'], elastic_server['api_key']),timeout=3.5)
 localtime = time.gmtime()
 date_now=time.strftime("%Y.%m.%d",localtime)
 index='logstash-%s' % (date_now)
 
-response = urllib.urlopen(api+"profile_agent/analyzer_check/")
-if response.getcode()==200:
-    print "200"
-    profile_agents = json.loads(response.read())
-    for profile_agent in profile_agents['profile_analyzer_check']:
+response = requests.get(api+"profile_agent/analyzer_check/",auth=(api_user, api_paswd))
+if response.status_code==200:
+    profile_agents = json.loads(response.text)
+    #print profile_agents
+    for profile_agent in profile_agents['data']:
         #print profile_agent['id']
         while threading.activeCount() > 10:
             time.sleep(1)
