@@ -74,13 +74,13 @@ def analyzer_check(id,ip,agent,analyzer_status,dropframe,dropframe_threshold,dis
                 except requests.exceptions.RequestException:
                         print "can't connect API!"
 
-configfile='/opt/monitor/config.py'
+configfile='/opt/analyzer.monitor/monitor/config.py'
 if os.path.exists(configfile):
         execfile(configfile)
 else:
         print "can't read file config";
         exit(1)
-es = Elasticsearch(elastic_server['ip'],api_key=(elastic_server['api_id'], elastic_server['api_key']),timeout=3.5)
+es = Elasticsearch(elastic_server['ip'], api_key=(elastic_server['api_id'], elastic_server['api_key']), use_ssl=True,verify_certs=False, ca_certs=elastic_server['certs'], ssl_show_warn=False, timeout=3.5)
 localtime = time.gmtime()
 date_now=time.strftime("%Y.%m.%d",localtime)
 index='logstash-%s' % (date_now)
